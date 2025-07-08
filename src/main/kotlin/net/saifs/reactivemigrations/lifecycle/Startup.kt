@@ -46,5 +46,9 @@ fun main(args: Array<String>) = runBlocking {
     context.scan("net.saifs.reactivemigrations")
     context.refresh()
     context.start()
+    val start = System.currentTimeMillis()
     startup.startup()
+    val elapsed = (System.currentTimeMillis() - start) / 1000
+    println("Migration completed in $elapsed seconds")
+    Runtime.getRuntime().exit(0)
 }

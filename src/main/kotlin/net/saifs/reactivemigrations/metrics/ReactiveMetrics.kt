@@ -4,6 +4,8 @@ import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tag
 import io.micrometer.core.instrument.Timer
+import net.saifs.reactivemigrations.extension.logger
+import net.saifs.reactivemigrations.lifecycle.ShutdownTask
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 
@@ -11,7 +13,9 @@ import org.springframework.stereotype.Component
 class ReactiveMetrics private constructor(
     override val registry: MeterRegistry,
     private val tags: List<String>,
-) : Metrics {
+) : Metrics, ShutdownTask {
+    private val logger by logger()
+
     @Autowired
     constructor(registry: MeterRegistry) : this(registry, emptyList())
 
@@ -36,5 +40,15 @@ class ReactiveMetrics private constructor(
             tags.chunked(2).map { (key, value) -> Tag.of(key, value) },
             value
         ) { measure(it).toDouble() }
+    }
+
+    override suspend fun shutdown() {
+        logger.info { "Closing micrometer" }
+        runCatching {
+            registry.close()
+            logger.info { "micrometer closed :)" }
+        }.onFailure {
+            logger.error(it) { "Failed closing micrometer" }
+        }
     }
 }

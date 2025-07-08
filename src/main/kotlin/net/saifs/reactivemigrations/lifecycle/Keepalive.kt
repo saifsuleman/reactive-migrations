@@ -3,7 +3,7 @@ package net.saifs.reactivemigrations.lifecycle
 import net.saifs.reactivemigrations.extension.logger
 import org.springframework.stereotype.Component
 
-@Component
+//@Component
 class Keepalive : Initializer, ShutdownTask {
     private val logger by logger()
     private val thread = Thread({

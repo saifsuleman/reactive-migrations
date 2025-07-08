@@ -34,8 +34,16 @@ class ReactiveTransfer(
     private val uploads = RateLimiter(config.tps)
 
     private val operations = AtomicLong(0)
+    private val errors = AtomicLong(0)
 
     override suspend fun initialize() {
+        do {
+            errors.set(0)
+            migrate()
+        } while (errors.get() > 0 || operations.get() > 0)
+    }
+
+    suspend fun migrate() {
         logger.info { "starting transfer" }
         coroutineScope {
             listOf(
@@ -77,11 +85,12 @@ class ReactiveTransfer(
                         uploads.acquire()
                         metrics.timer("objects.upload.duration") { target.upload(file, data) }
                         metrics.increment("objects.transferred.total")
-                        metrics.increment("bytes.transferred.total", amount = file.size.toDouble())
+                        metrics.increment("bytes.transferred.total", amount = data.size.toDouble())
                     }
                         .onFailure { error ->
                             logger.error(error) { "Failed to transfer file: ${file.path}" }
                             metrics.increment("objects.transfer.failed")
+                            errors.incrementAndGet()
                         }
                     operations.decrementAndGet()
                     emit(Unit)
@@ -103,6 +112,7 @@ class ReactiveTransfer(
                             .onFailure {
                                 logger.error(it) { "Failed to delete file: ${file.path}" }
                                 metrics.increment("objects.delete.failed")
+                                errors.incrementAndGet()
                             }
                         operations.decrementAndGet()
                         emit(Unit)
@@ -114,8 +124,5 @@ class ReactiveTransfer(
             logger.warn { "Deletion is not allowed, skipping deletion ${toDelete.size} of files" }
             metrics.increment("objects.delete.skipped", amount = toDelete.size.toDouble())
         }
-
-        // eeesh, instead of setting it to 0 we should probably just handle the remaining operations with a recalculate
-        operations.set(0)
     }
 }

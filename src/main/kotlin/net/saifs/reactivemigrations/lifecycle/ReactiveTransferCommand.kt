@@ -18,6 +18,7 @@ class ReactiveTransferCommand : CliktCommand("reactivetransfer"){
     private val syncMetadata by option("--sync-metadata", help = "Sync metadata between source and target").flag(default = false)
     private val concurrency by option("--concurrency", help = "Number of concurrent transfers").int().default(200)
     private val tps by option("--tps", help = "Transfers per second").int().default(2000)
+    private val batch by option("--batch", help = "Batch size for transfers").int().default(1000)
 
     override fun run() = runBlocking {
         val config = TransferConfig(
@@ -26,7 +27,8 @@ class ReactiveTransferCommand : CliktCommand("reactivetransfer"){
             allowDelete = allowDelete,
             syncMetadata = syncMetadata,
             concurrency = concurrency,
-            tps = tps
+            tps = tps,
+            batchSize = batch,
         )
 
         context.beanFactory.registerSingleton("transferConfig", config)
